@@ -1,15 +1,18 @@
-[project]
+[tool.poetry]
 name = "pubmed-project"
 version = "0.1.0"
-description = "A CLI Tool to fetch research papers for PubMed"
-authors = [
-    {name = "Protima Kumbhakar"}
-]
+description = "A CLI Tool to fetch research papers from PubMed"
+authors = ["Protima Kumbhakar"]
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "requests (>=2.32.3,<3.0.0)"
-]
+packages = [{include = "pubmed_fetch.py"}] 
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.13"
+requests = "^2.32.3"
+typer = "^0.15.2"
+
+[tool.poetry.scripts]
+get-papers-list = "pubmed_fetch:app"
 
 
 [build-system]

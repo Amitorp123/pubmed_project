@@ -2,7 +2,7 @@
 
 import requests        # Fetch Research Papers from PubMed
 import csv             # Save Data to a CSV File
-import argparse
+import typer
 import sys
 import xml.etree.ElementTree as ET
 
@@ -13,21 +13,24 @@ import xml.etree.ElementTree as ET
 # Step4 Build a Command-Line Interface
 
 
+app = typer.Typer()
+
 #  Function to check if an affiliation is non-academic
 def is_non_academic(affiliation):
-    """Checks if an affiliation belongs to a non-academic institution."""
     non_academic_keywords = ["Pharmaceutical", "Biotech", "Company", "Inc", "Ltd", "Diagnostics", "Medical Center"]
     return any(keyword in affiliation for keyword in non_academic_keywords)
 
 
-#  Function to fetch paper IDs based on query
-def fetch_papers(query, debug=False):
+
+
+#  Function to fetch paper IDs
+def fetch_papers(query: str, debug: bool = False):
     base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
     params = {
         "db": "pubmed",
         "term": query,
         "retmode": "json",
-        "retmax": 5  # Fetch top 5 results
+        "retmax": 5  
     }
 
     response = requests.get(base_url, params=params)
@@ -35,15 +38,16 @@ def fetch_papers(query, debug=False):
         data = response.json()
         paper_ids = data.get("esearchresult", {}).get("idlist", [])
         if debug:
-            print(f"[DEBUG] Fetched {len(paper_ids)} paper IDs: {paper_ids}")
+            typer.echo(f"[DEBUG] Fetched {len(paper_ids)} paper IDs: {paper_ids}")
         return paper_ids
 
-    print("Error fetching data")
+    typer.echo("Error fetching data")
     return []
 
 
-#  Function to fetch paper details (Title, Date, Authors, Affiliations, Emails)
-def fetch_paper_details(paper_id, debug=False):
+
+#  Function to fetch paper details
+def fetch_paper_details(paper_id: str, debug: bool = False):
     url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
     params = {
         "db": "pubmed",
@@ -56,11 +60,9 @@ def fetch_paper_details(paper_id, debug=False):
     if response.status_code == 200:
         root = ET.fromstring(response.content)
 
-        #  Extract title
         title_element = root.find(".//ArticleTitle")
         title = title_element.text if title_element is not None else "Unknown"
 
-        #  Extract publication date
         pub_year = root.find(".//PubDate/Year")
         pub_month = root.find(".//PubDate/Month")
         pub_day = root.find(".//PubDate/Day")
@@ -78,7 +80,6 @@ def fetch_paper_details(paper_id, debug=False):
             else "Unknown"
         )
 
-        #  Extract authors, affiliations, and check non-academic authors
         authors = []
         affiliations = []
         non_academic_authors = []
@@ -97,12 +98,11 @@ def fetch_paper_details(paper_id, debug=False):
             if is_non_academic(author_affiliation):
                 non_academic_authors.append(full_name)
 
-        #  Extract corresponding author email
         email_element = root.find(".//AffiliationInfo/Note")
         email = email_element.text if email_element is not None and "@" in email_element.text else "Not Provided"
 
         if debug:
-            print(f"[DEBUG] Paper {paper_id}: {title}, {pub_date}, Non-Academic Authors: {non_academic_authors}")
+            typer.echo(f"[DEBUG] Paper {paper_id}: {title}, {pub_date}, Non-Academic Authors: {non_academic_authors}")
 
         return {
             "id": paper_id,
@@ -116,8 +116,9 @@ def fetch_paper_details(paper_id, debug=False):
     return None
 
 
+
 #  Function to save results to CSV
-def save_to_csv(papers, filename="output.csv"):
+def save_to_csv(papers, filename: str):
     with open(filename, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(["PubmedID", "Title", "Publication Date", "Non-Academic Author(s)", "Company Affiliations", "Corresponding Author Email"])
@@ -125,37 +126,33 @@ def save_to_csv(papers, filename="output.csv"):
         for paper in papers:
             writer.writerow([paper["id"], paper["title"], paper["date"], paper["non_academic_authors"], paper["affiliations"], paper["email"]])
 
-    print(f"Results saved to {filename}")
+    typer.echo(f"Results saved to {filename}")
 
 
-#  Main function for CLI
-def main():
-    parser = argparse.ArgumentParser(description="Fetch and filter research papers from PubMed.")
 
-    # Arguments
-    parser.add_argument("--query", type=str, required=True, help="Search query for PubMed")
-    parser.add_argument("--file", type=str, default="output.csv", help="Output CSV file name (default: output.csv)")
-    parser.add_argument("--debug", action="store_true", help="Enable debug mode for more detailed logs")
 
-    args = parser.parse_args()
+#  CLI Command
+@app.command()
+def get_papers_list(query: str, file: str = "output.csv", debug: bool = False):
 
-    # Fetch papers based on query
-    paper_ids = fetch_papers(args.query, args.debug)
-
+    #""" Fetch research papers from PubMed based on a search query.#"""
+    paper_ids = fetch_papers(query, debug)
+    
     if not paper_ids:
-        print("No research papers found for the given query.")
-        sys.exit(1)
+        typer.echo("No research papers found for the given query.")
+        raise typer.Exit()
 
-    # Fetch details for each paper
     papers = []
     for pid in paper_ids:
-        details = fetch_paper_details(pid, args.debug)
+        details = fetch_paper_details(pid, debug)
         if details:
             papers.append(details)
 
-    # Save results to CSV
-    save_to_csv(papers, args.file)
-
+    save_to_csv(papers, file)
 
 if __name__ == "__main__":
-    main()
+    app()
+
+
+def main():
+    app()
