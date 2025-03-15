@@ -15,12 +15,6 @@ import xml.etree.ElementTree as ET
 
 app = typer.Typer()
 
-#  Function to check if an affiliation is non-academic
-def is_non_academic(affiliation):
-    non_academic_keywords = ["Pharmaceutical", "Biotech", "Company", "Inc", "Ltd", "Diagnostics", "Medical Center"]
-    return any(keyword in affiliation for keyword in non_academic_keywords)
-
-
 
 
 #  Function to fetch paper IDs
@@ -114,6 +108,14 @@ def fetch_paper_details(paper_id: str, debug: bool = False):
         }
 
     return None
+
+
+
+
+#  Function to check if an affiliation is non-academic
+def is_non_academic(affiliation):
+    non_academic_keywords = ["Pharmaceutical", "Biotech", "Company", "Inc", "Ltd", "Diagnostics", "Medical Center"]
+    return any(keyword in affiliation for keyword in non_academic_keywords)
 
 
 
